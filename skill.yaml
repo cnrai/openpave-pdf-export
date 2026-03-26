@@ -1,0 +1,73 @@
+# OpenPAVE PDF-Export Skill
+# Export HTML slide decks to high-fidelity PDF with clickable links
+
+name: pdf-export
+version: 1.0.0
+description: Export HTML slide decks to PDF with retina screenshots, clickable links, and video-to-link swaps via Puppeteer + Chrome
+
+author:
+  name: cnrai
+  url: https://github.com/cnrai
+
+license: MIT
+homepage: https://github.com/cnrai/openpave-pdf-export
+repository: cnrai/openpave-pdf-export
+
+pattern: sandbox
+entrypoint: index.js
+
+commands:
+  - name: export
+    description: Export an HTML slide deck to PDF
+    options:
+      - -i, --input <file>
+      - -o, --output <file>
+      - --chrome <path>
+      - --width <pixels>
+      - --height <pixels>
+      - --scale <factor>
+      - --selector <css>
+      - --node-path <paths>
+      - --open
+
+tokens: {}
+
+permissions:
+  fs.read:
+    - "*"
+  fs.write:
+    - "*"
+  network: []
+  modules:
+    - fs
+    - path
+  system:
+    - node
+    - open
+    - xdg-open
+    - which
+    - npm
+
+platforms:
+  - darwin
+  - linux
+  - win32
+
+engines:
+  node: ">=16.0.0"
+
+keywords:
+  - pdf
+  - export
+  - slides
+  - deck
+  - presentation
+  - puppeteer
+  - chrome
+  - screenshot
+  - retina
+  - clickable-links
+  - video-swap
+
+category: productivity
+icon: "\U0001F4CA"
