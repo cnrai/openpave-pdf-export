@@ -255,6 +255,13 @@ async function exportToPDF() {
 
     // One-time setup: disable transitions, handle video/pdf swaps, hide UI chrome
     await page.evaluate((sel) => {
+        // Mark html+body so author CSS can guard animation initial states via
+        //   body:not(.pdf-export) .anim { opacity: 0 }
+        // Must be set BEFORE author scripts are removed so any pre-removal JS
+        // and all class-based CSS guards see it.
+        document.documentElement.classList.add('pdf-export');
+        document.body.classList.add('pdf-export');
+
         document.querySelectorAll('script').forEach(el => el.remove());
         document.querySelectorAll('video').forEach(v => { v.style.display = 'none'; });
         document.querySelectorAll('.video-link-pdf').forEach(link => { link.style.display = 'block'; });
@@ -262,7 +269,9 @@ async function exportToPDF() {
 
         // Kill transitions, instantly complete animations to final state
         // Uses 0.001s duration + fill-mode:forwards so animated opacity values
-        // resolve to their intended final state (not 0)
+        // resolve to their intended final state (not 0). For robustness, author
+        // CSS should also gate animation-initial-state rules with
+        // `body:not(.pdf-export)` so no animation runs during export at all.
         const killStyle = document.createElement('style');
         killStyle.textContent = '*, *::before, *::after { transition: none !important; transition-delay: 0s !important; animation-delay: 0s !important; animation-duration: 0.001s !important; animation-fill-mode: forwards !important; }';
         document.head.appendChild(killStyle);
@@ -277,7 +286,7 @@ async function exportToPDF() {
     const slideBuffers = [];
     const slideLinks = [];
     for (let i = 0; i < slideCount; i++) {
-        await page.evaluate((idx, total, sel) => {
+        await page.evaluate((idx, total, sel, w, h) => {
             const slides = document.querySelectorAll(sel);
             for (let j = 0; j < total; j++) {
                 const slide = slides[j];
@@ -289,6 +298,14 @@ async function exportToPDF() {
                     slide.style.position = 'absolute';
                     slide.style.top = '0';
                     slide.style.left = '0';
+                    // Pin the active slide to the capture viewport so that any
+                    // absolutely-positioned chrome (brand bars with bottom:0,
+                    // slide numbers, footers) anchors to the page edges rather
+                    // than collapsing to content height. Without this, a slide
+                    // whose CSS doesn't set an explicit height will shrink-wrap
+                    // and `bottom:0` elements float into the middle of the slide.
+                    slide.style.width = w + 'px';
+                    slide.style.height = h + 'px';
                     slide.classList.add('active');
                 } else {
                     slide.style.display = 'none';
@@ -298,7 +315,7 @@ async function exportToPDF() {
                     slide.classList.remove('active');
                 }
             }
-        }, i, slideCount, SELECTOR);
+        }, i, slideCount, SELECTOR, WIDTH, HEIGHT);
 
         await delay(300);
 

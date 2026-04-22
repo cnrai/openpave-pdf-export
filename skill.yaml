@@ -2,7 +2,7 @@
 # Export HTML slide decks to high-fidelity PDF with clickable links
 
 name: pdf-export
-version: 1.0.0
+version: 1.1.0
 description: Export HTML slide decks to PDF with retina screenshots, clickable links, and video-to-link swaps via Puppeteer + Chrome
 
 author:

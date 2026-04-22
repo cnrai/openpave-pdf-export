@@ -152,6 +152,88 @@ animation-delay: 0s !important;
 
 This causes animations to complete instantly to their **final state**, preserving intentional opacity values on decorative elements (e.g. brackets at 0.15, arch-lines at 0.06).
 
+The skill also adds a `pdf-export` class to both `<html>` and `<body>` **before** removing author scripts, so your CSS can reliably branch on export mode (see authoring rules below).
+
+## Authoring Rules for Reliable PDF Export
+
+Follow these rules when building HTML decks for export — they prevent missing content, misaligned overlays, and invisibly-animated elements in the final PDF.
+
+### 1. Gate animation-initial-state rules with `body:not(.pdf-export)`
+
+Any CSS that sets `opacity: 0` (or transforms) as the **initial state for an animation** must be scoped so it doesn't apply during export. Otherwise the element may paint at `opacity:0` before the kill-style resolves it.
+
+**Bad** — element may be invisible in PDF:
+```css
+.anim { opacity: 0; }
+.slide.active .anim { animation: fadeInUp 0.6s forwards; }
+```
+
+**Good** — initial state only applies in-browser:
+```css
+body:not(.pdf-export) .anim { opacity: 0; }
+body:not(.pdf-export) .slide.active .anim { animation: fadeInUp 0.6s forwards; }
+```
+
+Apply this pattern to **every** class used as an animation initial state.
+
+### 2. Don't rely on inline `style="display:..."` on slide containers
+
+The skill sets `slide.style.display = ''` to reveal each slide, which wipes inline `display`. Put layout rules in CSS:
+
+```css
+.slide.active { display: flex; flex-direction: column; }
+```
+
+### 3. Avoid `var(--*)` in SVG presentation attributes
+
+Headless Chrome in screen-capture mode does **not** reliably resolve CSS custom properties used as SVG presentation attributes — `fill="var(--accent)"` renders as unfilled.
+
+**Bad:** `<circle fill="var(--pave-accent)" />`
+**Good:** `<circle fill="#c8ff00" />`
+
+This caveat applies only to SVG presentation attributes — `var(--*)` works fine in normal CSS.
+
+### 4. Don't put critical labels in SVG `<text>` elements
+
+SVG `<text>` renders inconsistently in capture mode (kerning, baseline, visibility). For any label that must appear in the PDF, use an absolutely-positioned HTML `<div>` overlay.
+
+```html
+<div style="position:relative;width:400px;height:280px;margin:0 auto;">
+  <svg viewBox="0 0 400 280" preserveAspectRatio="xMidYMid meet"
+       style="width:100%;height:100%;display:block;">
+    <circle cx="200" cy="40" r="34" fill="#1e293b" stroke="#c8ff00"/>
+  </svg>
+  <div style="position:absolute;inset:0;pointer-events:none;">
+    <!-- cx=200/400=50%, cy=40/280=14% -->
+    <div style="position:absolute;top:14%;left:50%;
+                transform:translate(-50%,-50%);text-align:center;">Label</div>
+  </div>
+</div>
+```
+
+**Critical:** pin the wrapper to the SVG's exact aspect ratio. Otherwise `preserveAspectRatio` letterboxes the SVG and overlay percentages won't map to SVG coordinates.
+
+### 5. Hardcode colors in SVG
+
+Use hex/rgba (not CSS variables) for SVG strokes, fills, gradient `stop-color`, and marker fills.
+
+### 6. Author scripts are removed before capture
+
+The skill removes all `<script>` tags before per-slide screenshots. MutationObservers, RAF loops, and IntersectionObservers will not run during capture. Do all PDF-mode adjustments via CSS guarded with `body.pdf-export` / `body:not(.pdf-export)`.
+
+### 7. Slide containers are auto-pinned to capture viewport
+
+The skill inlines `width: <WIDTH>px; height: <HEIGHT>px` on the active slide during capture. This ensures absolutely-positioned chrome (brand bars with `bottom:0`, slide numbers, footers) anchors to the page edges rather than floating inside a shrink-wrapped content box. You do **not** need to set an explicit slide height in your CSS.
+
+### Pre-Export Checklist
+
+- [ ] Animation initial-state rules prefixed with `body:not(.pdf-export)`
+- [ ] No inline `style="display:..."` on `<section class="slide">`
+- [ ] No `var(--*)` in SVG `fill` / `stroke` / `stop-color` attributes
+- [ ] No critical text in SVG `<text>` — use HTML overlays
+- [ ] SVG overlay wrappers pinned to SVG's exact viewBox aspect ratio
+- [ ] Lucide icons (or similar JS-initialized content) rendered before export, or use static SVG
+
 ## Environment Variables
 
 | Variable | Description |
